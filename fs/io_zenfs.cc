@@ -31,9 +31,9 @@ namespace ROCKSDB_NAMESPACE {
 
 ZoneExtent::ZoneExtent(uint64_t start, uint64_t length, Zone* zone, ZoneFile* zone_file)
     : start_(start), length_(length), zone_(zone), zone_file_(zone_file) {
-      // if(zone != nullptr) {
-      //     zone -> SetZoneExtent(this);
-      // }
+      if(zone != nullptr) {
+          zone -> SetZoneExtent(this);
+      }
     }
 
 Status ZoneExtent::DecodeFrom(Slice* input) {

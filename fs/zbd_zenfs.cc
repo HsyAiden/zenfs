@@ -76,6 +76,24 @@ void Zone::EncodeJson(std::ostream &json_stream) {
   json_stream << "}";
 }
 
+std::vector<ZoneExtent *> Zone::GetZoneExtents() { return extents_; }
+
+void Zone::SetZoneExtent(ZoneExtent *zone_extent) {
+  extents_.push_back(zone_extent);
+}
+
+void Zone::RemoveZoneExtent(ZoneExtent *zone_extent) {
+  auto iter = extents_.begin();
+  while (iter != extents_.end()) {
+    if (zone_extent == *iter) {
+      std::cout << "remove extent ------------" << std::endl;
+      iter = extents_.erase(iter);
+    } else {
+      iter++;
+    }
+  }
+}
+
 IOStatus Zone::Reset() {
   size_t zone_sz = zbd_->GetZoneSize();
   unsigned int report = 1;
@@ -100,7 +118,7 @@ IOStatus Zone::Reset() {
 
   wp_ = start_;
   lifetime_ = Env::WLTH_NOT_SET;
-
+  extents_.clear();
   return IOStatus::OK();
 }
 
@@ -219,6 +237,39 @@ IOStatus ZonedBlockDevice::CheckScheduler() {
   }
 
   f.close();
+  return IOStatus::OK();
+}
+
+IOStatus ZonedBlockDevice::ZoneDataMigration(Zone *source_zone) {
+  Zone *target_zone = nullptr;
+  IOStatus s = AllocateEmptyZone(&target_zone);
+  if (!s.ok()) {
+    PutActiveIOZoneToken();
+    PutOpenIOZoneToken();
+    return s;
+  }
+  if (source_zone == nullptr) {
+    std::cout << "source zone is nui" << std::endl;
+  }
+  std::vector<ZoneExtent *> extents = source_zone->GetZoneExtents();
+  std::cout << "extent size :" << extents.size() << std::endl;
+
+  for (auto *extent : extents) {
+    auto zone_file = extent->zone_file_;
+    if (zone_file == nullptr) {
+      std::cout << "zone file is nui" << std::endl;
+    } else {
+      std::cout << "zone file is not nui" << std::endl;
+      std::cout << "file name: " << zone_file->GetFilename() << std::endl;
+      if (zone_file->IsDeleted()) {
+        std::cout << "zone file is delete" << std::endl;
+      } else {
+        std::cout << "zone file is not  delete" << std::endl;
+      }
+    }
+  }
+  ReleaseMigrateZone(target_zone);
+  std::cout << "force reset success" << std::endl;
   return IOStatus::OK();
 }
 

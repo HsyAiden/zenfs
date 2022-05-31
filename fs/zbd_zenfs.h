@@ -34,7 +34,7 @@ namespace ROCKSDB_NAMESPACE {
 class ZonedBlockDevice;
 class ZoneSnapshot;
 class ZenFSSnapshotOptions;
-
+class ZoneExtent;
 class Zone {
   ZonedBlockDevice *zbd_;
   std::atomic_bool busy_;
@@ -46,9 +46,15 @@ class Zone {
   uint64_t capacity_; /* remaining capacity */
   uint64_t max_capacity_;
   uint64_t wp_;
+  uint64_t reset_num = 0;
   Env::WriteLifeTimeHint lifetime_;
   std::atomic<uint64_t> used_capacity_;
+  std::vector<ZoneExtent*> extents_;
 
+
+  std::vector<ZoneExtent*> GetZoneExtents();
+  void SetZoneExtent(ZoneExtent* zone_extent);
+  void RemoveZoneExtent(ZoneExtent* zone_extent);
   IOStatus Reset();
   IOStatus Finish();
   IOStatus Close();
@@ -119,6 +125,7 @@ class ZonedBlockDevice {
                                 std::make_shared<NoZenFSMetrics>());
   virtual ~ZonedBlockDevice();
 
+  IOStatus ZoneDataMigration(Zone* source_zone);
   IOStatus Open(bool readonly, bool exclusive);
   IOStatus CheckScheduler();
 
