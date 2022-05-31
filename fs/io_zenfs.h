@@ -27,19 +27,21 @@
 
 namespace ROCKSDB_NAMESPACE {
 
+class ZoneFile;
+
 class ZoneExtent {
  public:
   uint64_t start_;
   uint64_t length_;
   Zone* zone_;
+  ZoneFile* zone_file_;
 
-  explicit ZoneExtent(uint64_t start, uint64_t length, Zone* zone);
+  explicit ZoneExtent(uint64_t start, uint64_t length, Zone* zone, ZoneFile* zone_file);
   Status DecodeFrom(Slice* input);
   void EncodeTo(std::string* output);
   void EncodeJson(std::ostream& json_stream);
 };
 
-class ZoneFile;
 
 /* Interface for persisting metadata for files */
 class MetadataWriter {
