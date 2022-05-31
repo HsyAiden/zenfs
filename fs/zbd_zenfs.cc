@@ -273,6 +273,28 @@ IOStatus ZonedBlockDevice::ZoneDataMigration(Zone *source_zone) {
   return IOStatus::OK();
 }
 
+IOStatus ZonedBlockDevice::ChooseZone() {
+  int i = 0;
+  for (const auto z : io_zones) {
+    if (i != 10) {
+      i++;
+    } else {
+      if (z->Acquire()) {
+        if (z->reset_num < 1 || z->IsEmpty()) {
+          z->CheckRelease();
+          continue;
+        }
+        std::cout << "mi------------zoneid : " << z->GetZoneNr() << std::endl;
+        IOStatus migrat_status = ZoneDataMigration(z);
+        z->CheckRelease();
+        if (!migrat_status.ok()) return migrat_status;
+      }
+    }
+  }
+
+  return IOStatus::OK();
+}
+
 IOStatus ZonedBlockDevice::Open(bool readonly, bool exclusive) {
   struct zbd_zone *zone_rep;
   unsigned int reported_zones;
@@ -576,6 +598,7 @@ IOStatus ZonedBlockDevice::ResetUnusedIOZones() {
         bool full = z->IsFull();
         IOStatus reset_status = z->Reset();
         IOStatus release_status = z->CheckRelease();
+        z->reset_num++;
         if (!reset_status.ok()) return reset_status;
         if (!release_status.ok()) return release_status;
         if (!full) PutActiveIOZoneToken();
@@ -585,6 +608,10 @@ IOStatus ZonedBlockDevice::ResetUnusedIOZones() {
       }
     }
   }
+  if (index_ > 500) {
+    file_flag = true;
+  }
+
   return IOStatus::OK();
 }
 

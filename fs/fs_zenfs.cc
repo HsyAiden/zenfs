@@ -18,6 +18,7 @@
 #include <sstream>
 #include <utility>
 #include <vector>
+#include <iostream>
 
 #include "rocksdb/utilities/object_registry.h"
 #include "snapshot.h"
@@ -518,7 +519,18 @@ IOStatus ZenFS::DeleteFileNoLock(std::string fname, const IOOptions& options,
     } else {
       if (zoneFile->GetNrLinks() > 0) return s;
       /* Mark up the file as deleted so it won't be migrated by GC */
+
       zoneFile->SetDeleted();
+      std::vector<ZoneExtent*> extents = zoneFile->GetExtents();
+      for (auto* ext : extents) {
+        ext->zone_->RemoveZoneExtent(ext);
+        std::cout << "ext->zone id: " << ext->zone_->GetZoneNr() << std::endl;
+      }
+      if(zbd_->file_flag == true) {
+        IOStatus migrat_status =zbd_->ChooseZone();
+      }
+
+
       zoneFile.reset();
     }
   } else {

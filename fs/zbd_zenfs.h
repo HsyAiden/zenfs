@@ -96,6 +96,7 @@ class ZonedBlockDevice {
   time_t start_time_;
   std::shared_ptr<Logger> logger_;
   uint32_t finish_threshold_ = 0;
+  uint32_t index_ = 0;
 
   std::atomic<long> active_io_zones_;
   std::atomic<long> open_io_zones_;
@@ -119,6 +120,7 @@ class ZonedBlockDevice {
                       const std::vector<Zone *> zones);
 
  public:
+  std::atomic<bool> file_flag{false};
   explicit ZonedBlockDevice(std::string bdevname,
                             std::shared_ptr<Logger> logger,
                             std::shared_ptr<ZenFSMetrics> metrics =
@@ -126,6 +128,7 @@ class ZonedBlockDevice {
   virtual ~ZonedBlockDevice();
 
   IOStatus ZoneDataMigration(Zone* source_zone);
+  IOStatus ChooseZone();
   IOStatus Open(bool readonly, bool exclusive);
   IOStatus CheckScheduler();
 
