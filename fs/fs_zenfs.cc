@@ -524,7 +524,7 @@ IOStatus ZenFS::DeleteFileNoLock(std::string fname, const IOOptions& options,
       std::vector<ZoneExtent*> extents = zoneFile->GetExtents();
       for (auto* ext : extents) {
         ext->zone_->RemoveZoneExtent(ext);
-        std::cout << "ext->zone id: " << ext->zone_->GetZoneNr() << std::endl;
+//        std::cout << "ext->zone id: " << ext->zone_->GetZoneNr() << std::endl;
       }
       if(zbd_->file_flag == true) {
         IOStatus migrat_status =zbd_->ChooseZone();

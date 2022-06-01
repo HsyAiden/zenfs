@@ -86,7 +86,7 @@ void Zone::RemoveZoneExtent(ZoneExtent *zone_extent) {
   auto iter = extents_.begin();
   while (iter != extents_.end()) {
     if (zone_extent == *iter) {
-      std::cout << "remove extent ------------" << std::endl;
+ //     std::cout << "remove extent ------------" << std::endl;
       iter = extents_.erase(iter);
     } else {
       iter++;
@@ -248,28 +248,37 @@ IOStatus ZonedBlockDevice::ZoneDataMigration(Zone *source_zone) {
     PutOpenIOZoneToken();
     return s;
   }
-  if (source_zone == nullptr) {
-    std::cout << "source zone is nui" << std::endl;
-  }
   std::vector<ZoneExtent *> extents = source_zone->GetZoneExtents();
-  std::cout << "extent size :" << extents.size() << std::endl;
-
   for (auto *extent : extents) {
     auto zone_file = extent->zone_file_;
     if (zone_file == nullptr) {
       std::cout << "zone file is nui" << std::endl;
     } else {
-      std::cout << "zone file is not nui" << std::endl;
-      std::cout << "file name: " << zone_file->GetFilename() << std::endl;
-      if (zone_file->IsDeleted()) {
-        std::cout << "zone file is delete" << std::endl;
-      } else {
-        std::cout << "zone file is not  delete" << std::endl;
+      if (!zone_file->IsDeleted()) {
+        //数据迁移
+        uint64_t target_start = target_zone->wp_;
+        //开始迁移
+        if (zone_file->IsSparse()) {
+          target_start = target_zone->wp_ + ZoneFile::SPARSE_HEADER_SIZE;
+          zone_file->MigrateData(extent->start_ - ZoneFile::SPARSE_HEADER_SIZE,
+                             extent->length_ + ZoneFile::SPARSE_HEADER_SIZE,
+                             target_zone);
+        } else {
+          zone_file->MigrateData(extent->start_, extent->length_, target_zone);
+        }
+        // 处理ext
+        extent->start_ = target_start;
+        extent->zone_ = target_zone;
+        target_zone->SetZoneExtent(extent);
+        extent->zone_->used_capacity_ += extent->length_;
       }
     }
   }
+  //回收老zone,调用Reset
+  source_zone->Reset();
+  source_zone->reset_num++;
   ReleaseMigrateZone(target_zone);
-  std::cout << "force reset success" << std::endl;
+//  std::cout << "force reset success" << std::endl;
   return IOStatus::OK();
 }
 
@@ -284,14 +293,19 @@ IOStatus ZonedBlockDevice::ChooseZone() {
           z->CheckRelease();
           continue;
         }
-        std::cout << "mi------------zoneid : " << z->GetZoneNr() << std::endl;
-        IOStatus migrat_status = ZoneDataMigration(z);
-        z->CheckRelease();
-        if (!migrat_status.ok()) return migrat_status;
+        if (z->reset_num == 3) {
+          std::cout << "mi------------zoneid : " << z->GetZoneNr() << std::endl;
+          IOStatus migrat_status = ZoneDataMigration(z);
+          z->CheckRelease();
+          if (!migrat_status.ok()) return migrat_status;
+        } else {
+          z->CheckRelease();
+        }
       }
     }
   }
-
+  file_flag = false;
+  index_ = 0;
   return IOStatus::OK();
 }
 
@@ -608,6 +622,7 @@ IOStatus ZonedBlockDevice::ResetUnusedIOZones() {
       }
     }
   }
+  index_++;
   if (index_ > 500) {
     file_flag = true;
   }
